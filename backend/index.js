@@ -59,28 +59,52 @@ app.get("/books/after2015", async (req, res) => {
   res.json(books);
 });
 
-
-
-
 app.put("/update-copies/:id", async (req, res) => {
-  const book = await Book.findById(req.params.id);
-  if (!book) return res.send("Book not found");
+  try {
+    const { change } = req.body;   // + or -
 
-  if (book.availableCopies + req.body.change < 0)
-    return res.send("Negative stock not allowed");
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
-  book.availableCopies += req.body.change;
-  await book.save();
-  res.json(book);
+    if (book.availableCopies + change < 0)
+      return res.status(400).json({ message: "Negative stock not allowed" });
+
+    book.availableCopies += change;
+    await book.save();
+
+    res.json(book);
+
+  } catch (err) {
+    res.status(400).json({ message: "Invalid update" });
+  }
+});
+
+app.patch("/books/category/:id", async (req, res) => {
+  try {
+    const book = await Book.findByIdAndUpdate(
+      req.params.id,
+      { category: req.body.category },
+      { new: true }
+    );
+
+    if (!book) return res.status(404).json({ message: "Book not found" });
+
+    res.json(book);
+
+  } catch {
+    res.status(400).json({ message: "Invalid update" });
+  }
 });
 
 app.delete("/delete-book/:id", async (req, res) => {
   const book = await Book.findById(req.params.id);
-  if (!book) return res.send("Book not found");
+
+  if (!book) return res.status(404).json({ message: "Book not found" });
 
   if (book.availableCopies !== 0)
-    return res.send("Copies not zero");
+    return res.status(400).json({ message: "Cannot delete — copies available" });
 
-  await book.deleteOne();
-  res.send("Book Deleted");
+  await Book.findByIdAndDelete(req.params.id);
+
+  res.json({ message: "Book deleted successfully" });
 });
